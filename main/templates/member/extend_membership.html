@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Member/</span> Extend Membership</h4>
+
+<div class="row">
+    <div class="col-xl">
+        <div class="card mb-4">
+            <div class="card-body">
+                <form class="row" method="post" action="{% url 'extend_membership' member.pk %}">
+                    {% csrf_token %}
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="extension_duration">Extend By</label>
+                        <select id="extension_duration" name="extension_duration" class="form-control" required>
+                            <option value="0">Select an option</option>
+                            <option value="1">1 Month</option>
+                            <option value="3">3 Months</option>
+                            <option value="6">6 Months</option>
+                            <option value="12">1 Year</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="new_membership_duration">New Membership Duration</label>
+                        <input type="text" class="form-control" id="new_membership_duration" name="new_membership_duration" value="{{ member.start_date|date:'Y-m-d' }} - {{ member.end_date|date:'Y-m-d' }}" readonly>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="price">Price</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="price" name="price" required>
+                            <button class="btn btn-outline-secondary" type="button" id="get-price">Get Price</button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 mb-3">
+                        <button type="submit" class="btn btn-primary">Extend</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $(document).ready(function() {
+        function calculateNewMembershipEndDate() {
+            var currentEndDate = moment("{{ member.end_date }}");
+            var extensionMonths = parseInt($('#extension_duration').val());
+            var newEndDate = currentEndDate.add(extensionMonths, 'months').format('YYYY-MM-DD');
+            $('#new_membership_duration').val("{{ member.start_date|date:'Y-m-d' }} - " + newEndDate);
+            return extensionMonths;  // Return only the extension period in months
+        }
+
+        // Calculate the new membership duration when the extension duration is changed
+        $('#extension_duration').on('change', function() {
+            calculateNewMembershipEndDate();
+        });
+
+        function getPrice() {
+            var extensionMonths = calculateNewMembershipEndDate();
+
+            $.ajax({
+                url: "{% url 'get_price' %}",
+                type: 'GET',
+                data: { duration: extensionMonths },
+                success: function(response) {
+                    if (response.success) {
+                        $('#price').val(response.price);
+                    } else {
+                        Swal.fire({
+                            text: response.error,
+                            icon: "error",
+                            background: 'var(--bs-body-bg)',
+                            color: 'var(--bs-body-color)',
+                            confirmButtonColor: 'var(--bs-primary)',
+                            confirmButtonText: 'Ok, got it!'
+                        });
+                    }
+                }
+            });
+        }
+
+        $('#get-price').on('click', function(e) {
+            e.preventDefault();
+            getPrice();
+        });
+
+        // Initialize the new membership duration based on the default selected value
+        calculateNewMembershipEndDate();
+
+        var validator = $('form').validate({
+            submitHandler: function(form) {
+                var formData = new FormData(form);
+
+                $.ajax({
+                    url: $(form).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    // dataType: 'json',
+                    processData: false, // Prevent jQuery from processing FormData
+                    contentType: false, // Set contentType to false for FormData
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                text: response.message,
+                                icon: "success",
+                                background: 'var(--bs-body-bg)',
+                                color: 'var(--bs-body-color)',
+                                confirmButtonColor: 'var(--bs-primary)',
+                                confirmButtonText: 'Ok, got it!'
+                            }).then((result) => {
+                                window.location.href = response.redirectUrl;
+                            });
+                        } else {
+                            var errors = response.errors;
+                            validator.showErrors(errors)
+                        }
+                    }
+                });
+                return false; // Prevent default form submission
+            }
+        })
+    });
+</script>
+{% endblock %}

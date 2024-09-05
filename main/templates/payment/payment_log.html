@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Payment/</span> Log</h4>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Member Name</th>
+                            <th>Membership</th>
+                            <th>Price</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in payment_logs %}
+                        <tr>
+                            <td>{{ log.member_name }}</td>
+                            <td>{{ log.duration }} month{{ log.duration|pluralize }}</td>
+                            <td>{{ log.price }}</td>
+                            <td>{{ log.created_at | date:"M j, Y, g:i a" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4">No payment logs found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $.fn.dataTable.moment('MMM D, YYYY, h:mm a');
+
+    $('table').dataTable({
+        order: [[4, 'desc']],
+    })
+
+</script>
+{% endblock %}

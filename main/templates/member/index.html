@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Members{% endblock %}
+
+{% block content %}
+<div class="d-flex py-3 mb-4">
+    <h4 class="fw-bold"><span class="text-muted fw-light">Member/</span> List</h4>
+
+    <a href="{% url 'create_member' %}" role="button" class="btn btn-primary ms-auto">Create Member</a>
+
+</div>
+
+      <!-- Basic Bootstrap Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table text-nowrap table-hover align-middle" width="100%">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Birthday</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Remarks</th>
+                        <th>Created At</th>
+                        <th>Last Modifed</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    {% for member in members %}
+                        <tr>
+                            <td>{{ member.full_name }}</td>
+                            <td>{{ member.birthday|date:"Y-m-d" }}</td>
+                            <td>{{ member.email }}</td>
+                            <td>{{ member.phone }}</td>
+                            <td>{{ member.start_date|date:"Y-m-d" }}</td>
+                            <td>{{ member.end_date|date:"Y-m-d" }}</td>
+                            <td>{{ member.remarks }}</td>
+                            <td>{{ member.created_at | date:"M j, Y, g:i a" }}</td>
+                            <td>{{ member.updated_at | date:"M j, Y, g:i a" }}</td>
+                            <td>
+                                <div class="dropdown">
+                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" aria-expanded="false">
+                                      <i class="bx bx-dots-vertical-rounded"></i>
+                                    </button>
+                                    <div class="dropdown-menu" style="">
+                                        <a href="{% url 'edit_member' member.id %}" role="button" class="dropdown-item"><i class='bx bx-edit me-1'></i>Edit</a>
+                                        <a href="{% url 'extend_membership' member.id %}" role="button" class="dropdown-item"><i class='bx bx-time-five me-1'></i>Extend</a>
+                                        <form id="delete-form" action="{% url 'delete_member' member.id %}" method="post">
+                                            {% csrf_token %}
+                                            <button type="button" class="text-danger delete-btn dropdown-item"><i class='bx bx-trash me-1'></i>Delete</button>
+                                        </form>
+
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $('.delete-btn').on('click', function(){
+        event.preventDefault()
+
+        Swal.fire({
+            text: "Are you sure you want to delete it?",
+            icon: "warning",
+            background: 'var(--bs-body-bg)',
+            color: 'var(--bs-body-color)',
+            showCancelButton: true,
+            confirmButtonColor: 'var(--bs-danger)',
+            cancelButtonColor: "var(--bs-body-color)",
+            confirmButtonText: "Delete",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = $(this).closest('form')
+
+                $.ajax({
+                    url: $(form).attr('action'),
+                    type: 'POST',
+                    data: $(form).serialize(),
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                text: response.message,
+                                icon: "success",
+                                background: 'var(--bs-body-bg)',
+                                color: 'var(--bs-body-color)',
+                                confirmButtonColor: 'var(--bs-primary)',
+                                confirmButtonText: 'Ok, got it!'
+                            }).then((result) => {
+                                window.location.href = response.redirectUrl;
+                            });
+                        } 
+                    },
+                });
+            }
+        });
+    })
+
+    $.fn.dataTable.moment('MMM D, YYYY, h:mm a');
+
+    $('table').dataTable({
+        order: [[8, 'desc']],
+    })
+
+</script>
+{% endblock %}

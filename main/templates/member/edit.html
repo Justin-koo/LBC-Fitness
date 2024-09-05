@@ -1,0 +1,251 @@
+<!-- templates/members/edit_member.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Member/</span> Edit</h4>
+
+<div class="row">
+    <div class="col-xl">
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="post" action="{% url 'edit_member' form.instance.id %}">
+                    {% csrf_token %}
+                    <div class="row">
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="full_name">Full Name</label>
+                            <input type="text" class="form-control" name="full_name" id="full_name" value="{{ form.full_name.value }}" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="birthday">Birthday</label>
+                            <input type="date" class="form-control" name="birthday" id="birthday" value="{{ form.birthday.value|date:'Y-m-d' }}">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="email">Email</label>
+                            <input type="email" name="email" id="email" class="form-control" value="{{ form.email.value|default:'' }}">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="phone">Phone No</label>
+                            <input type="text" id="phone" name="phone" class="form-control phone-mask" value="{{ form.phone.value }}" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="daterange">Membership Duration</label>
+                            <input type="text" id="daterange" name="daterange" class="form-control" value="{{ daterange }}" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="price">Price</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="price" name="price" value="{{ price }}">
+                                <button class="btn btn-outline-secondary" type="button" id="get-price">Get Price</button>
+                            </div>
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="basic-default-message">Remarks</label>
+                            <textarea id="basic-default-message" name="remarks" class="form-control">{{ form.remarks.value }}</textarea>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="nfc_tag">NFC Tag UID</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="nfc_tag" name="nfc_tag_uid" value="{{ form.nfc_tag_uid.value|default:'' }}" readonly>
+                                <button class="btn btn-outline-secondary" type="button" id="scan-nfc">Scan NFC Card</button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $(document).ready(function() {
+        const daterange = "{{daterange}}"
+
+        $('#daterange').daterangepicker({
+            autoUpdateInput: false, // Don't auto-fill the input
+            locale: {
+                cancelLabel: 'Clear'
+            },
+            ranges: {
+                '1 Month': [moment(), moment().add(1, 'month')],
+                '3 Months': [moment(), moment().add(3, 'months')],
+                '6 Months': [moment(), moment().add(6, 'months')],
+                '1 Year': [moment(), moment().add(1, 'year')],
+            },
+            alwaysShowCalendars: true,
+            startDate: moment(daterange.split(' - ')[0]),
+            endDate: moment(daterange.split(' - ')[1])
+        }, function(start, end, label) {
+            $('#daterange').val(start.format('YYYY-MM-DD') + ' - ' + end.format('YYYY-MM-DD'));
+        });
+
+        $('#daterange').on('apply.daterangepicker', function(ev, picker) {
+            $(this).val(picker.startDate.format('YYYY-MM-DD') + ' - ' + picker.endDate.format('YYYY-MM-DD'));
+        });
+
+        $('#daterange').on('cancel.daterangepicker', function(ev, picker) {
+            $(this).val('');
+        });
+
+        function calculateMonths(startDate, endDate) {
+            var start = moment(startDate);
+            var end = moment(endDate);
+            return end.diff(start, 'months');
+        }
+
+        function getPrice(){
+            var daterange = $('#daterange').val();
+
+            if (daterange === '') {
+                Swal.fire({
+                    text: "Please select a date range first.",
+                    icon: "warning",
+                    background: 'var(--bs-body-bg)',
+                    color: 'var(--bs-body-color)',
+                    confirmButtonColor: 'var(--bs-primary)',
+                    confirmButtonText: 'Ok, got it!'
+                });
+                return;
+            }
+
+            // Split the daterange and calculate the months
+            var dates = daterange.split(' - ');
+            var startDate = dates[0];
+            var endDate = dates[1];
+            var months = calculateMonths(startDate, endDate);
+
+            $.ajax({
+                url: "{% url 'get_price' %}",
+                type: 'GET',
+                data: { duration: months },
+                success: function(response) {
+                    if (response.success) {
+                        $('#price').val(response.price);
+                    } else {
+                        Swal.fire({
+                            text: response.error,
+                            icon: "error",
+                            background: 'var(--bs-body-bg)',
+                            color: 'var(--bs-body-color)',
+                            confirmButtonColor: 'var(--bs-primary)',
+                            confirmButtonText: 'Ok, got it!'
+                        });
+                    }
+                }
+            });
+        }
+
+        $('#get-price').on('click', function(e) {
+            e.preventDefault();
+
+            getPrice()
+        });
+
+        var validator = $('form').validate({
+            submitHandler: function(form) {
+                var formData = new FormData(form);
+
+                $.ajax({
+                    url: $(form).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    // dataType: 'json',
+                    processData: false, // Prevent jQuery from processing FormData
+                    contentType: false, // Set contentType to false for FormData
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                text: response.message,
+                                icon: "success",
+                                background: 'var(--bs-body-bg)',
+                                color: 'var(--bs-body-color)',
+                                confirmButtonColor: 'var(--bs-primary)',
+                                confirmButtonText: 'Ok, got it!'
+                            }).then((result) => {
+                                window.location.href = response.redirectUrl;
+                            });
+                        } else {
+                            var errors = response.errors;
+                            validator.showErrors(errors)
+                        }
+                    }
+                });
+                return false; // Prevent default form submission
+            }
+        });
+
+        // NFC Scan Functionality
+        var nfcRequest;
+
+        $('#scan-nfc').on('click', function(e) {
+            e.preventDefault();
+            
+            Swal.fire({
+                title: "Scanning NFC...",
+                text: "Please hold the NFC card near the reader.",
+                icon: "info",
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                showCancelButton: true,
+                cancelButtonText: "Cancel"
+            }).then((result) => {
+                if (result.dismiss === Swal.DismissReason.cancel) {
+                    if (nfcRequest) {
+                        nfcRequest.abort(); // Cancel the AJAX request
+                    }
+                    Swal.fire({
+                        text: "NFC scanning canceled.",
+                        icon: "info",
+                        background: 'var(--bs-body-bg)',
+                        color: 'var(--bs-body-color)',
+                        confirmButtonColor: 'var(--bs-primary)',
+                        confirmButtonText: 'Ok, got it!'
+                    });
+                }
+            });
+
+            nfcRequest = $.ajax({
+                url: "{% url 'scan_nfc' %}", // Ensure you have a corresponding view
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        $('#nfc_tag').val(response.nfc_tag_uid);
+                        Swal.fire({
+                            text: "NFC tag scanned successfully!",
+                            icon: "success",
+                            background: 'var(--bs-body-bg)',
+                            color: 'var(--bs-body-color)',
+                            confirmButtonColor: 'var(--bs-primary)',
+                            confirmButtonText: 'Ok, got it!'
+                        });
+                    } else {
+                        Swal.fire({
+                            text: response.error,
+                            icon: "error",
+                            background: 'var(--bs-body-bg)',
+                            color: 'var(--bs-body-color)',
+                            confirmButtonColor: 'var(--bs-primary)',
+                            confirmButtonText: 'Ok, got it!'
+                        });
+                    }
+                }
+            });
+        });
+        
+    });
+</script>
+{% endblock %}

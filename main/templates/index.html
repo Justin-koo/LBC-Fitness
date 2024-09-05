@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% load static %}
+
+{% block content %}
+<h4 class="fw-bold py-3 mb-4">
+   NFC Detection
+</h4>
+
+<div class="card mb-5" id="nfc-card">
+    <div id="nfc-card-body" class="card-body h-100 d-flex flex-column align-items-center justify-content-center">
+        <div id="nfc-lottie" style="width: 150px; height: 150px;"></div>
+        <span id="nfc-status-text" class="fw-bolder fs-5">
+            Waiting For NFC Input
+        </span>
+    </div>
+</div>
+
+<!-- Hidden card to display member details -->
+<div class="accordion mb-3" id="member-details-accordion" style="display: none;">
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="memberHeadings">
+            <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#memberCollapse" aria-expanded="true" aria-controls="memberCollapse">
+                Last Member Details
+            </button>
+        </h2>
+        <div id="memberCollapse" class="accordion-collapse collapse show" aria-labelledby="memberHeadings" data-bs-parent="#member-details-accordion">
+            <div class="accordion-body p-3">
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        Name
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <a href="#" class="text-decoration-underline" id="member-link">
+                            <b id="member-name"></b>
+                        </a>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        Email
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <b id="member-email"></b>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        Phone
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <b id="member-phone"></b>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        Start Date
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <b id="member-start-date"></b>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        End Date
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <b id="member-end-date"></b>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        Membership Status
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <b id="membership-status"></b>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block javascript %}
+<script>
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/nfc/');
+
+    var lottieAnimation = lottie.loadAnimation({
+        container: document.getElementById('nfc-lottie'),
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: '{% static "lottie/Animation - 1724061199761.json" %}' // replace with your Lottie JSON path
+    });
+
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        console.log(data);
+
+        // Check if the message indicates that a member was found
+        if (data.member) {
+            $('#nfc-status-text').text("NFC Detected");
+
+            const editUrl = "{% url 'edit_member' 1 %}".replace('1', data.member.id);
+            $('#member-link').attr('href', editUrl);
+
+            // Populate the member details card
+            $('#member-name').text(data.member.full_name);
+            $('#member-email').text(data.member.email);
+            $('#member-phone').text(data.member.phone);
+            $('#member-start-date').text(data.member.start_date);
+            $('#member-end-date').text(data.member.end_date);
+            $('#membership-status').text(data.member.membership_status);
+            data.member.membership_status === "Valid" ? $('#membership-status').removeClass("text-danger").addClass("text-success") : $('#membership-status').removeClass("text-success").addClass("text-danger")
+            
+            if (!$('#memberCollapse').hasClass('show')) {
+                // Open the accordion if it's not already open
+                $('#memberCollapse').collapse('show');
+            }
+
+            // Show the card with fadeIn effect
+            $('#member-details-accordion').fadeIn();
+
+            if (data.member.membership_status === "Valid") {
+                Swal.fire({
+                    text: 'Membership Valid',
+                    icon: 'success',
+                }).then((result) => {
+                    $('#nfc-status-text').text("Waiting For NFC Input");
+                    socket.send(JSON.stringify({ action: 'start_scan' }));
+                });
+            } else if (data.member.membership_status === "Expired") {
+                Swal.fire({
+                    text: 'Membership Expired',
+                    icon: 'error',
+                }).then((result) => {
+                    $('#nfc-status-text').text("Waiting For NFC Input");
+                    socket.send(JSON.stringify({ action: 'start_scan' }));
+                });
+            }
+
+        } else {
+            Swal.fire({
+                text: data.message,
+                icon: 'error',
+            }).then((result) => {
+                let message = data.message
+
+                if ('member' in data) {
+                    socket.send(JSON.stringify({ action: 'start_scan' }));
+                    message = "Waiting For NPC Input"
+                }
+
+                $('#nfc-status-text').text(message);
+
+            });
+        }
+    };
+
+    // socket.onclose = function(e) {
+    //     console.error('WebSocket closed unexpectedly');
+    // };
+</script>
+{% endblock %}
