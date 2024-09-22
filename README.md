@@ -6,7 +6,7 @@ The main focus of the system revolves around using nfc scanner to check for memb
 
 How to run:
 
-- git clone [https://github.com/Tunardo/LBC-Fitness.git](https://github.com/Justin-koo/LBCFitness.git)
+- git clone https://github.com/Justin-koo/LBCFitness.git
 
 - pip install -r requirements.txt
 
