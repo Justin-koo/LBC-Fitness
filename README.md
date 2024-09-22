@@ -6,11 +6,11 @@ The main focus of the system revolves around using nfc scanner to check for memb
 
 How to run:
 
-- git clone https://github.com/Tunardo/LBC-Fitness.git
+- git clone [https://github.com/Tunardo/LBC-Fitness.git](https://github.com/Justin-koo/LBCFitness.git)
 
 - pip install -r requirements.txt
 
-- daphne -p 8000 timetable.asgi:application
+- daphne -p 8000 project.asgi:application
 
 - then go to port http://127.0.0.1:8000/ to run the local server
 
